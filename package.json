@@ -6,8 +6,7 @@
     "types": "lib/index.d.ts",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "tsc",
-        "prepare": "npm run build",
+        "build": "tsc -p tsconfig.json",
         "version": "git add -A src",
         "postversion": "git push && git push --tags"
     },
