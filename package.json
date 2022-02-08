@@ -6,7 +6,7 @@
     "types": "lib/index.d.ts",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "tsc --declaration",
+        "build": "npx tsc && npx tsc -p tsconfig.json --emitDeclarationOnly",
         "prepare": "npm run build",
         "version": "git add -A src",
         "postversion": "git push && git push --tags"
@@ -26,5 +26,8 @@
     "homepage": "https://github.com/alex-profir/cross-platform#readme",
     "devDependencies": {
         "typescript": "^4.5.5"
+    },
+    "dependencies": {
+        "firebase": "^9.6.6"
     }
 }
