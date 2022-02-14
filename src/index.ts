@@ -1,8 +1,9 @@
 import { FirebaseApp, initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { doc, setDoc } from "firebase/firestore";
+import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { DocumentSnapshot, FirestoreError, getFirestore } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { logEvent, getAnalytics } from "firebase/analytics";
+import { getFunctions, httpsCallable } from "firebase/functions";
 export const Sum = (a: number, b: number) => a + b;
 
 let app: FirebaseApp | null = null;
@@ -19,29 +20,57 @@ export async function createUser(email: string, password: string) {
     assertAppExists(app);
 
     const auth = getAuth();
-    const analytics = getAnalytics();
 
-    const user = await createUserWithEmailAndPassword(auth, email, password);
-    const operation = user.operationType
-    logEvent(analytics, "createUser", { operation });
-    return user;
+    return await createUserWithEmailAndPassword(auth, email, password);;
 }
 export async function loginWithEmail(email: string, password: string) {
     assertAppExists(app);
 
     const auth = getAuth();
-    const analytics = getAnalytics();
 
-    const user = await signInWithEmailAndPassword(auth, email, password);
-    const operation = user.operationType
-    logEvent(analytics, "login", { operation });
-    return user;
+    return await signInWithEmailAndPassword(auth, email, password);
 }
+
+export async function logout() {
+    assertAppExists(app);
+    const auth = getAuth();
+    signOut(auth);
+}
+
+export async function getData(docPath: string) {
+
+    const firestore = getFirestore();
+
+    const ref = doc(firestore, docPath);
+
+    const data = await getDoc(ref);
+
+    const onChange = (cb: {
+        next?: (snapshot: DocumentSnapshot<any>) => void;
+        error?: (error: FirestoreError) => void;
+        complete?: () => void;
+    }) => onSnapshot(ref, cb);
+
+    return {
+        data: data.data(),
+        onChange,
+    }
+}
+
+export async function functionCall(functionName: string, body: object) {
+    assertAppExists(app);
+
+    const functions = getFunctions(app);
+
+    const call = httpsCallable<any, any>(functions, functionName);
+    return (await call.call(functions, body)).data;
+}
+
+
 export async function loginWithGoogle() {
     assertAppExists(app);
 
     const auth = getAuth();
-    const analytics = getAnalytics();
     const firestore = getFirestore();
 
     const googleAuthProvider = new GoogleAuthProvider();
@@ -51,7 +80,6 @@ export async function loginWithGoogle() {
     const firstName = data.user?.displayName?.split(" ")[0];
     const lastName = data.user?.displayName?.split(" ")[1];
 
-    logEvent(analytics, "login", { operation: "google_login" });
     const cityRef = doc(firestore, 'users', data.user?.uid);
     await setDoc(cityRef, {
         firstName,
@@ -59,3 +87,6 @@ export async function loginWithGoogle() {
     }, { merge: true });
     return data;
 }
+
+
+
