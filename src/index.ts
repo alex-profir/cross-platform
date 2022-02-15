@@ -1,16 +1,75 @@
 import { FirebaseApp, initializeApp } from "firebase/app";
-import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { DocumentSnapshot, FirestoreError, getFirestore } from "firebase/firestore";
+import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, Auth } from "firebase/auth";
+import { DocumentSnapshot, Firestore, FirestoreError, getFirestore } from "firebase/firestore";
+import * as allFirestore from "firebase/firestore";
 import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { logEvent, getAnalytics } from "firebase/analytics";
 import { getFunctions, httpsCallable } from "firebase/functions";
 export const Sum = (a: number, b: number) => a + b;
 
 let app: FirebaseApp | null = null;
+
 export function initialize(...props: Parameters<typeof initializeApp>) {
     app = initializeApp(...props);
+}
+type Nullable<T> = {
+    [P in keyof T]: T[P] | null
+}
+type Providers = {
+    auth: Auth,
+    firestore: Firestore,
+    onSnapshot: typeof onSnapshot,
+    httpsCallable: typeof httpsCallable,
+    signInWithEmailAndPassword: typeof signInWithEmailAndPassword,
+} & Partial<typeof allFirestore>
+let providers: Nullable<Providers> = {
+    auth: null,
+    firestore: null,
+    onSnapshot: null,
+    httpsCallable: null,
+    signInWithEmailAndPassword: null
+}
+
+
+export function initializeProvider(p: Providers) {
+    providers = p;
+
+    for (const key in providers) {
+        if (key === null) {
+            console.warn(`${key} was not initialized, this can cause problems`);
+        }
+    }
+}
+function assertProviders(providers: any): asserts providers is Required<Providers> {
 
 }
+export function loginWithProvider(email: string, password: string) {
+    assertProviders(providers);
+
+    return providers.signInWithEmailAndPassword(providers.auth, email, password);
+}
+export function logoutWithProvider() {
+    assertProviders(providers);
+
+    return providers.auth.signOut();
+}
+
+export async function getDocWithProvider(docPath: string) {
+    assertProviders(providers);
+
+    const { doc, firestore, getDoc, onSnapshot } = providers;
+
+    const ref = doc(firestore, docPath);
+
+    const data = await getDoc(ref);
+
+    const onChange = (cb: (doc: any) => void) => onSnapshot(ref, cb);
+
+    return {
+        data: data.data(),
+        onChange,
+    }
+}
+
 function assertAppExists(app: any): asserts app is FirebaseApp {
     if (!app) {
         throw new Error("Firebase app not initialized");
