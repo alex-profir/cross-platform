@@ -1,32 +1,30 @@
-import { FirebaseApp, initializeApp } from "firebase/app";
-import { getAuth, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, Auth } from "firebase/auth";
-import { DocumentSnapshot, Firestore, FirestoreError, getFirestore } from "firebase/firestore";
-import * as allFirestore from "firebase/firestore";
-import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import firebase from "firebase/app";
+import auth from "firebase/auth";
+import "firebase/auth";
+import "firebase/functions";
+import "firebase/firestore";
 export const Sum = (a: number, b: number) => a + b;
 
-let app: FirebaseApp | null = null;
+let app: firebase.app.App | null = null;
 
-export function initialize(...props: Parameters<typeof initializeApp>) {
-    app = initializeApp(...props);
+export function initialize(...props: Parameters<typeof firebase.initializeApp>) {
+    app = firebase.initializeApp(...props);
+
 }
+
 type Nullable<T> = {
     [P in keyof T]: T[P] | null
 }
+
 type Providers = {
-    auth: Auth,
-    firestore: Firestore,
-    onSnapshot: typeof onSnapshot,
-    httpsCallable: typeof httpsCallable,
-    signInWithEmailAndPassword: typeof signInWithEmailAndPassword,
-} & Partial<typeof allFirestore>
+    auth: firebase.auth.Auth,
+    firestore: firebase.firestore.Firestore,
+    functions: firebase.functions.Functions
+}
 let providers: Nullable<Providers> = {
     auth: null,
     firestore: null,
-    onSnapshot: null,
-    httpsCallable: null,
-    signInWithEmailAndPassword: null
+    functions: null
 }
 
 
@@ -38,6 +36,7 @@ export function initializeProvider(p: Providers) {
             console.warn(`${key} was not initialized, this can cause problems`);
         }
     }
+
 }
 function assertProviders(providers: any): asserts providers is Required<Providers> {
 
@@ -45,7 +44,7 @@ function assertProviders(providers: any): asserts providers is Required<Provider
 export function loginWithProvider(email: string, password: string) {
     assertProviders(providers);
 
-    return providers.signInWithEmailAndPassword(providers.auth, email, password);
+    return providers.auth.signInWithEmailAndPassword(email, password);
 }
 export function logoutWithProvider() {
     assertProviders(providers);
@@ -56,21 +55,19 @@ export function logoutWithProvider() {
 export async function getDocWithProvider(docPath: string) {
     assertProviders(providers);
 
-    const { doc, firestore, getDoc, onSnapshot } = providers;
+    const db = providers.firestore;
+    const ref = db.doc(docPath);
 
-    const ref = doc(firestore, docPath);
-
-    const data = await getDoc(ref);
-
-    const onChange = (cb: (doc: any) => void) => onSnapshot(ref, cb);
+    const data = await ref.get();
 
     return {
         data: data.data(),
-        onChange,
+        onChange: ref.onSnapshot,
     }
+
 }
 
-function assertAppExists(app: any): asserts app is FirebaseApp {
+function assertAppExists(app: any): asserts app is firebase.app.App {
     if (!app) {
         throw new Error("Firebase app not initialized");
     }
@@ -78,73 +75,40 @@ function assertAppExists(app: any): asserts app is FirebaseApp {
 export async function createUser(email: string, password: string) {
     assertAppExists(app);
 
-    const auth = getAuth();
-
-    return await createUserWithEmailAndPassword(auth, email, password);;
+    return await app.auth().createUserWithEmailAndPassword(email, password);
 }
 export async function loginWithEmail(email: string, password: string) {
     assertAppExists(app);
 
-    const auth = getAuth();
 
-    return await signInWithEmailAndPassword(auth, email, password);
+    return await app.auth().createUserWithEmailAndPassword(email, password);
 }
 
 export async function logout() {
     assertAppExists(app);
-    const auth = getAuth();
-    signOut(auth);
+
+    return app.auth().signOut();
 }
 
 export async function getData(docPath: string) {
+    assertAppExists(app);
+    const db = app.firestore();
+    const ref = db.doc(docPath);
 
-    const firestore = getFirestore();
-
-    const ref = doc(firestore, docPath);
-
-    const data = await getDoc(ref);
-
-    const onChange = (cb: {
-        next?: (snapshot: DocumentSnapshot<any>) => void;
-        error?: (error: FirestoreError) => void;
-        complete?: () => void;
-    }) => onSnapshot(ref, cb);
+    const data = await ref.get();
 
     return {
         data: data.data(),
-        onChange,
+        onChange: ref.onSnapshot,
     }
 }
 
 export async function functionCall(functionName: string, body: object) {
     assertAppExists(app);
 
-    const functions = getFunctions(app);
 
-    const call = httpsCallable<any, any>(functions, functionName);
-    return (await call.call(functions, body)).data;
-}
-
-
-export async function loginWithGoogle() {
-    assertAppExists(app);
-
-    const auth = getAuth();
-    const firestore = getFirestore();
-
-    const googleAuthProvider = new GoogleAuthProvider();
-
-    const data = await signInWithPopup(auth, googleAuthProvider);
-
-    const firstName = data.user?.displayName?.split(" ")[0];
-    const lastName = data.user?.displayName?.split(" ")[1];
-
-    const cityRef = doc(firestore, 'users', data.user?.uid);
-    await setDoc(cityRef, {
-        firstName,
-        lastName
-    }, { merge: true });
-    return data;
+    const call = app.functions().httpsCallable(functionName);
+    return (await call.call(body)).data;
 }
 
 
