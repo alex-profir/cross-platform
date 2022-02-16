@@ -1,8 +1,9 @@
 import firebase from "firebase/app";
-import auth from "firebase/auth";
+// import auth from "firebase/auth";
 import "firebase/auth";
 import "firebase/functions";
 import "firebase/firestore";
+
 export const Sum = (a: number, b: number) => a + b;
 
 let app: firebase.app.App | null = null;
@@ -38,9 +39,11 @@ export function initializeProvider(p: Providers) {
     }
 
 }
+
 function assertProviders(providers: any): asserts providers is Required<Providers> {
 
 }
+
 export function loginWithProvider(email: string, password: string) {
     assertProviders(providers);
 
@@ -62,7 +65,7 @@ export async function getDocWithProvider(docPath: string) {
 
     return {
         data: data.data(),
-        onChange: ref.onSnapshot,
+        onChange: ref.onSnapshot.bind(ref),
     }
 
 }
@@ -81,7 +84,7 @@ export async function loginWithEmail(email: string, password: string) {
     assertAppExists(app);
 
 
-    return await app.auth().createUserWithEmailAndPassword(email, password);
+    return await app.auth().signInWithEmailAndPassword(email, password);
 }
 
 export async function logout() {
@@ -96,10 +99,10 @@ export async function getData(docPath: string) {
     const ref = db.doc(docPath);
 
     const data = await ref.get();
-
     return {
         data: data.data(),
-        onChange: ref.onSnapshot,
+        onChange: ref.onSnapshot.bind(ref),
+        // unsubscribe
     }
 }
 
@@ -111,5 +114,12 @@ export async function functionCall(functionName: string, body: object) {
     return (await call.call(body)).data;
 }
 
+export async function functionCallWithProvider(functionName: string, body?: any) {
+    assertProviders(providers);
 
+    const functions = providers.functions;
+
+    const call = functions.httpsCallable(functionName);
+    return (await call.call(body)).data;
+}
 
