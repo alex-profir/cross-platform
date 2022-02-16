@@ -25,9 +25,8 @@
     },
     "homepage": "https://github.com/alex-profir/cross-platform#readme",
     "devDependencies": {
+        "firebase": "^8.10.1",
         "typescript": "^4.5.5"
     },
-    "dependencies": {
-        "firebase": "^8.10.1"
-    }
+    "dependencies": {}
 }
