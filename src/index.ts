@@ -1,7 +1,7 @@
 import type firebase from "firebase"
 
 export const Sum = (a: number, b: number) => a + b;
-
+export const product = (a: number, b: number) => a * b;
 type Nullable<T> = {
     [P in keyof T]: T[P] | null
 }
